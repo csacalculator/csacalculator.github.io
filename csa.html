@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSA Calculator</title>
+    <style>body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(to bottom, #FFFFFF, #FFFFFF);
+        }
+        html body {
+            font-size: 14px;
+            margin: 0px;
+            padding: 0px;
+        }
+        .card-content {
+            padding: 24px;
+        }</style>
+    <!-- Include Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+</head>
+<body>
+    <div class="container">
+        <h3 class="center-align" style="font-size:21px;">CSA Calculator (Child Maintenance Calculator)</h3>
+        <div class="row">
+            <div class="col s12 m12">
+                <div class="card">
+                    <div class="card-content">
+                        <div class="row" style="margin-bottom:0px;">
+                            <div class="col s12 m4">
+                                <div class="input-field" style="margin-bottom:0px;">
+                                    <input type="number" id="parentIncome" step="any" value="2500">
+                                    <label for="parentIncome" class="active">Parent's Income (Monthly)</label>
+                                </div>
+                            </div>
+                            <div class="col s12 m4">
+                                <div class="input-field" style="margin-bottom:0px;">
+                                    <input type="number" id="numChildren" value="2">
+                                    <label for="numChildren" class="active">Number of Children</label>
+                                </div>
+                            </div>
+                            <div class="col s12 m4" style="margin-bottom:0px;">
+                                <div>&nbsp;</div>
+                                <button class="btn waves-effect waves-light" id="calculateBtn">Calculate</button>
+                                <button class="btn waves-effect waves-light red" id="clearBtn">Reset</button>
+                            </div>
+                        </div>                        
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col s12 m12">
+                <div class="card">
+                    <div class="card-content">
+                        <!-- New chart container -->
+                        <canvas id="chartCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <h4 style="margin: 0px 0px 20px;font-size: 21px;">Expense Breakdown</h4>
+                        <div id="expenseText"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Materialize JS (optional for some features) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const calculateBtn = document.getElementById('calculateBtn');
+            const parentIncomeInput = document.getElementById('parentIncome');
+            const numChildrenInput = document.getElementById('numChildren');
+            const chartCanvas = document.getElementById('chartCanvas');
+            const expenseText = document.getElementById('expenseText');
+            const clearBtn = document.getElementById('clearBtn');
+
+            calculateBtn.addEventListener('click', function () {
+                calculate();
+            });
+
+            clearBtn.addEventListener('click', function () {
+                parentIncomeInput.value = '';
+                numChildrenInput.value = '';
+                updateChartAndText(0, 0);
+            });
+
+            function calculate() {
+                const parentIncome = parseFloat(parentIncomeInput.value);
+                const numChildren = parseInt(numChildrenInput.value);
+                let percentage = 12;
+
+                if (parentIncome >= 0 && parentIncome <= 499) {
+                    percentage = 31.31;
+                } else if (parentIncome >= 500 && parentIncome <= 14999) {
+                    percentage = (numChildren === 1) ? 12 : (numChildren === 2) ? 16 : 19;
+                } else {
+                    percentage = (numChildren === 1) ? 12 : (numChildren === 2) ? 16 : 19;
+                }
+
+                let calculatedAmount = parentIncome * percentage / 100;
+
+                if (calculatedAmount > 1273.02) {
+                    calculatedAmount = 1273.02;
+                }
+                if (parentIncome <= 499) {
+                    calculatedAmount = 30.31;
+                }
+
+                M.toast({ html: `Calculated Amount: £${calculatedAmount.toFixed(2)}` });
+                updateChartAndText(numChildren, calculatedAmount);
+            }
+
+            function updateChartAndText(numChildren, calculatedAmount) {
+                const expenseDistribution = {
+                    Food: 0.3333,
+                    Clothing: 0.1667,
+                    Education: 0.25,
+                    Healthcare: 0.0833,
+                    Entertainment: 0.0833,
+                    Miscellaneous: 0.0833
+                };
+
+                const expenseLabels = Object.keys(expenseDistribution);
+                const expensePercentages = expenseLabels.map(label => expenseDistribution[label] * calculatedAmount);
+
+                var totalAmount = 0;
+                var expenseTextHtml = `<table class="striped table">
+                                            <thead>
+                                                <tr style="background-color: #18DBA6;">
+                                                    <th>Item<\/th>
+                                                    <th>Amount<\/th>
+                                                <\/tr>
+                                            <\/thead>
+                                            <tbody>`;
+                for (let i = 0; i < expenseLabels.length; i++) {
+                    expenseTextHtml += `<tr>
+                                            <td>${expenseLabels[i]}<\/td>
+                                            <td>£${expensePercentages[i].toFixed(2)}<\/td>
+                                        <\/tr>`;
+                    totalAmount += expensePercentages[i];
+                }
+                expenseTextHtml += `<tr style="background-color: #18DBA6;">
+                                        <td>Total Expense<\/td>
+                                        <td>£${totalAmount.toFixed(2)}<\/td>
+                                    <\/tr>
+                                <\/tbody>
+                            <\/table>`;
+
+                expenseText.innerHTML = expenseTextHtml;
+
+                if (window.myChart) {
+                    window.myChart.destroy();
+                }
+
+                window.myChart = new Chart(chartCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: expenseLabels,
+                        datasets: [{
+                            label: 'Expense Amount',
+                            data: expensePercentages,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+            }
+            calculate();
+        });
+    </script>
+</body>
+</html>
